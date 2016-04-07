@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+    <body>
+    <script src="rest.js"></script>
+    <script>
+        var api = new RESTApi('/api');
+        var Users = api.useCollection('/users');
+
+        var usersContainer = document.createElement('div');
+        usersContainer.setAttribute('id', 'users-container');
+        document.body.appendChild(usersContainer);
+
+        Users.getList().then(function (users) {
+            users.forEach(insertUserIntoDOM);
+
+            var newUserElement = document.createElement('form');
+            newUserElement.style.margin = "0.5em";
+            newUserElement.style.padding = "0.5em";
+            newUserElement.style.borderTop = "1px solid rgba(0, 0, 0, 0.1)";
+            newUserElement.onsubmit = function (event) {
+                event.preventDefault();
+                Users.post({
+                    first_name: newFirstNameElement.value,
+                    last_name: newLastNameElement.value,
+                    dob: newDobElement.value
+                })
+                    .then(insertUserIntoDOM)
+                    .then(() => {
+                        this.reset();
+                    });
+            };
+
+
+            var newUserLabel = document.createElement('h1');
+            newUserLabel.textContent = 'Add A New User';
+
+            var newFirstNameElement = document.createElement('input');
+            newFirstNameElement.type = 'text';
+            newFirstNameElement.style.maxWidth = "100%";
+
+            var newLastNameElement = document.createElement('input');
+            newLastNameElement.type = 'text';
+            newLastNameElement.style.maxWidth = "100%";
+
+            var newDobElement = document.createElement('input');
+            newDobElement.type = 'date';
+            newDobElement.style.maxWidth = "100%";
+
+            var submitElement = document.createElement('input');
+            submitElement.type = 'submit';
+
+            newUserElement.appendChild(newUserLabel);
+            newUserElement.appendChild(newFirstNameElement);
+            newUserElement.appendChild(newLastNameElement);
+            newUserElement.appendChild(newDobElement);
+            newUserElement.appendChild(submitElement);
+
+            document.body.appendChild(newUserElement);
+        });
+
+        function insertUserIntoDOM(user) {
+            var userElement = document.createElement('div');
+            userElement.style.display = "inline-block";
+            userElement.style.margin = "0.5em";
+            userElement.style.padding = "0.5em";
+            userElement.style.border = "1px solid rgba(0, 0, 0, 0.1)";
+
+            var usernameElement = document.createElement('h3');
+            usernameElement.style.marginTop = 0;
+            usernameElement.innerHTML = user.first_name + ' ' + user.last_name;
+
+            var dobElement = document.createElement('div');
+            dobElement.innerHTML = user.dob;
+
+            var removeUserElement = document.createElement('input');
+            removeUserElement.type = 'button';
+            removeUserElement.value = 'Delete User';
+            removeUserElement.style.display = 'block';
+            removeUserElement.style.float = 'right';
+            removeUserElement.onclick = function (event) {
+                event.preventDefault();
+                Users.delete({ id: user.id })
+                    .then(() => {
+                        this.parentNode.remove();
+                    });
+            };
+
+            userElement.appendChild(usernameElement);
+            userElement.appendChild(dobElement);
+            userElement.appendChild(removeUserElement);
+
+            document.getElementById('users-container').appendChild(userElement);
+        }
+        </script>
+    </body>
+</html>
