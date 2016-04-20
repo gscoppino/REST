@@ -742,7 +742,7 @@ var RESTApi = (function () {
 
             if (this.params.routes) {
                 Object.keys(this.params.routes).forEach(function (key) {
-                    return _this.useNestedRoute(key, _this.params.routes[key]);
+                    return _this.useCollection(key, _this.params.routes[key]);
                 });
             }
         }

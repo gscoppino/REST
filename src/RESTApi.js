@@ -39,7 +39,7 @@ class RESTApi {
         }
 
         if (this.params.routes) {
-            Object.keys(this.params.routes).forEach(key => this.useNestedRoute(key, this.params.routes[key]));
+            Object.keys(this.params.routes).forEach(key => this.useCollection(key, this.params.routes[key]));
         }
     }
 
