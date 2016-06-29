@@ -14,7 +14,9 @@
     };
 
   var onUnhandledRejection = function onUnhandledRejection(err) {
-    console.warn('Possible Unhandled Promise Rejection:', err); // eslint-disable-line no-console
+    if (typeof console !== 'undefined' && console) {
+      console.warn('Possible Unhandled Promise Rejection:', err); // eslint-disable-line no-console
+    }
   };
 
   // Polyfill for Function.prototype.bind
@@ -340,7 +342,7 @@
   var support = {
     blob: 'FileReader' in self && 'Blob' in self && (function() {
       try {
-        new Blob();
+        new Blob()
         return true
       } catch(e) {
         return false
@@ -497,7 +499,7 @@
 
   function headers(xhr) {
     var head = new Headers()
-    var pairs = xhr.getAllResponseHeaders().trim().split('\n')
+    var pairs = (xhr.getAllResponseHeaders() || '').trim().split('\n')
     pairs.forEach(function(header) {
       var split = header.trim().split(':')
       var key = split.shift().trim()
@@ -550,9 +552,9 @@
     return new Response(null, {status: status, headers: {location: url}})
   }
 
-  self.Headers = Headers;
-  self.Request = Request;
-  self.Response = Response;
+  self.Headers = Headers
+  self.Request = Request
+  self.Response = Response
 
   self.fetch = function(input, init) {
     return new Promise(function(resolve, reject) {
@@ -575,7 +577,7 @@
           return xhr.getResponseHeader('X-Request-URL')
         }
 
-        return;
+        return
       }
 
       xhr.onload = function() {
@@ -590,11 +592,15 @@
           headers: headers(xhr),
           url: responseURL()
         }
-        var body = 'response' in xhr ? xhr.response : xhr.responseText;
+        var body = 'response' in xhr ? xhr.response : xhr.responseText
         resolve(new Response(body, options))
       }
 
       xhr.onerror = function() {
+        reject(new TypeError('Network request failed'))
+      }
+
+      xhr.ontimeout = function() {
         reject(new TypeError('Network request failed'))
       }
 
@@ -619,414 +625,410 @@
 })(typeof self !== 'undefined' ? self : this);
 
 var RESTApi = (function () {
-    'use strict';
+  'use strict';
 
-    var babelHelpers = {};
+  function isValidURI(URI) {
+      // A base URI can be a domain eg. "http://example.com"
+      // or it could be a path on the origin domain eg. "/example/"
+      return URI && typeof URI === 'string';
+  }
 
-    babelHelpers.classCallCheck = function (instance, Constructor) {
-      if (!(instance instanceof Constructor)) {
-        throw new TypeError("Cannot call a class as a function");
+  function isValidNestedURI(URI) {
+      // A nested URI can only be a path on a baseURI.
+      return isValidURI && URI !== '/' && !URI.startsWith('http');
+  }
+
+  function formatURI(URI) {
+      // If the URI is a path on the origin domain
+      // ensure that one leading slash and one trailing slash
+      // are present in the URI. If the URI is a crossorigin
+      // URI, only apply the trailing slash.
+      if (URI.startsWith('http')) return ensureURIHasOneTrailingSlash(URI.trim());else return ensureURIHasOneLeadingSlash(ensureURIHasOneTrailingSlash(URI.trim()));
+  }
+
+  function formatNestedURI(URI) {
+      // Since the baseURI always has a trailing slash
+      // remove the leading slash from the nested URI
+      // if present.
+      return ensureURIHasNoLeadingSlash(ensureURIHasOneTrailingSlash(URI.trim()));
+  }
+
+  function ensureURIHasNoLeadingSlash(URI) {
+      if (URI === '/') return URI;
+      if (!URI.startsWith('/')) return URI;
+      return ensureURIHasNoLeadingSlash(URI.slice(1));
+  }
+
+  function ensureURIHasOneLeadingSlash(URI) {
+      if (URI === '/') return URI;
+      if (!URI.startsWith('/')) return '/' + URI;
+      return ensureURIHasOneLeadingSlash(URI.slice(1));
+  }
+
+  function ensureURIHasOneTrailingSlash(URI) {
+      if (URI === '/') return URI;
+      if (!URI.endsWith('/')) return URI + '/';
+      return ensureURIHasOneTrailingSlash(URI.slice(0, -1));
+  }
+
+  function isValidID$1(id) {
+      return Number.isSafeInteger(id);
+  }
+
+  var classCallCheck = function (instance, Constructor) {
+    if (!(instance instanceof Constructor)) {
+      throw new TypeError("Cannot call a class as a function");
+    }
+  };
+
+  var createClass = function () {
+    function defineProperties(target, props) {
+      for (var i = 0; i < props.length; i++) {
+        var descriptor = props[i];
+        descriptor.enumerable = descriptor.enumerable || false;
+        descriptor.configurable = true;
+        if ("value" in descriptor) descriptor.writable = true;
+        Object.defineProperty(target, descriptor.key, descriptor);
       }
-    };
+    }
 
-    babelHelpers.createClass = function () {
-      function defineProperties(target, props) {
-        for (var i = 0; i < props.length; i++) {
-          var descriptor = props[i];
-          descriptor.enumerable = descriptor.enumerable || false;
-          descriptor.configurable = true;
-          if ("value" in descriptor) descriptor.writable = true;
-          Object.defineProperty(target, descriptor.key, descriptor);
-        }
+    return function (Constructor, protoProps, staticProps) {
+      if (protoProps) defineProperties(Constructor.prototype, protoProps);
+      if (staticProps) defineProperties(Constructor, staticProps);
+      return Constructor;
+    };
+  }();
+
+  var inherits = function (subClass, superClass) {
+    if (typeof superClass !== "function" && superClass !== null) {
+      throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
+    }
+
+    subClass.prototype = Object.create(superClass && superClass.prototype, {
+      constructor: {
+        value: subClass,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+    if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
+  };
+
+  var possibleConstructorReturn = function (self, call) {
+    if (!self) {
+      throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+    }
+
+    return call && (typeof call === "object" || typeof call === "function") ? call : self;
+  };
+
+  var RESTApi = function () {
+      function RESTApi(baseURI, options) {
+          var _this = this;
+
+          classCallCheck(this, RESTApi);
+
+          if (!isValidURI(baseURI)) throw new Error('Error instantiating RESTApi: baseURI not provided or not of type string.');
+
+          this.params = options || {};
+
+          this.baseURI = formatURI(baseURI);
+          this.routes = {};
+
+          if (this.params.headers) {
+              this.headers = Object.assign({}, RESTApi.defaultHeaders, this.params.headers);
+          } else {
+              this.headers = RESTApi.defaultHeaders;
+          }
+
+          if (this.params.routes) {
+              Object.keys(this.params.routes).forEach(function (key) {
+                  return _this.useCollection(key, _this.params.routes[key]);
+              });
+          }
       }
 
-      return function (Constructor, protoProps, staticProps) {
-        if (protoProps) defineProperties(Constructor.prototype, protoProps);
-        if (staticProps) defineProperties(Constructor, staticProps);
-        return Constructor;
-      };
-    }();
+      createClass(RESTApi, [{
+          key: 'useCollection',
+          value: function useCollection(nestedURI, options) {
+              if (!isValidNestedURI(nestedURI)) throw new Error('RESTApi: Invalid value provided for collection: ' + nestedURI + '.');
 
-    babelHelpers.inherits = function (subClass, superClass) {
-      if (typeof superClass !== "function" && superClass !== null) {
-        throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
+              nestedURI = formatNestedURI(nestedURI);
+              if (this.routes.hasOwnProperty(nestedURI)) throw new Error('RESTApi: Collection already registered: ${nestedURI}.');
+
+              this.routes[nestedURI] = new RESTCollection('' + this.baseURI + nestedURI, Object.assign({}, this.params, options));
+              return this.routes[nestedURI];
+          }
+      }]);
+      return RESTApi;
+  }();
+
+  RESTApi.defaultHeaders = {
+      GET: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+      },
+      POST: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+      },
+      PUT: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+      },
+      PATCH: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+      },
+      DELETE: {}
+  };
+
+  var RESTItem = function (_RESTApi) {
+      inherits(RESTItem, _RESTApi);
+
+      function RESTItem(URI, options, data) {
+          classCallCheck(this, RESTItem);
+
+          var _this = possibleConstructorReturn(this, Object.getPrototypeOf(RESTItem).call(this, URI, options));
+
+          Object.assign(_this, data);
+          return _this;
       }
 
-      subClass.prototype = Object.create(superClass && superClass.prototype, {
-        constructor: {
-          value: subClass,
-          enumerable: false,
-          writable: true,
-          configurable: true
-        }
-      });
-      if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
-    };
+      createClass(RESTItem, [{
+          key: 'getNestedResource',
+          value: function getNestedResource(path) {
+              path = ensureURIHasNoLeadingSlash(path);
 
-    babelHelpers.possibleConstructorReturn = function (self, call) {
-      if (!self) {
-        throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+              return fetch('' + this.baseURI + path, {
+                  method: 'GET'
+              }).then(function (response) {
+                  return response.json();
+              });
+          }
+
+          // May not keep this method
+          // path can be like 'orders' or 'orders/1'
+
+      }, {
+          key: 'getNestedApi',
+          value: function getNestedApi(apiInstance, path) {
+              path = ensureURIHasNoLeadingSlash(path);
+
+              return fetch('' + this.baseURI + path, {
+                  method: 'GET'
+              }).then(function (response) {
+                  return response.json();
+              }).then(function (resource) {
+                  if (apiInstance.routes[path]) return apiInstance.routes[path].sync(resource);else return resource;
+              });
+          }
+      }, {
+          key: 'nestedPost',
+          value: function nestedPost(nestedEndpoint) {
+              nestedEndpoint = ensureURIHasNoLeadingSlash(nestedEndpoint);
+              return fetch('' + this.baseURI + nestedEndpoint, {
+                  method: 'POST'
+              }).then(function (response) {
+                  return response.json();
+              });
+          }
+      }, {
+          key: 'nestedPatch',
+          value: function nestedPatch(nestedEndpoint, id) {
+              if (!isValidID(id)) throw new Error('REST: patch: invalid value provided for id: ${id}.');
+
+              nestedEndpoint = ensureURIHasNoLeadingSlash(nestedEndpoint);
+
+              return fetch('' + this.baseURI + nestedEndpoint + '/' + id, {
+                  method: 'PATCH'
+              }).then(function (response) {
+                  return response.json();
+              });
+          }
+      }, {
+          key: 'nestedPut',
+          value: function nestedPut(nestedEndpoint, id) {
+              if (!isValidID(id)) throw new Error('REST: put: invalid value provided for id: ${id}.');
+
+              nestedEndpoint = ensureURIHasNoLeadingSlash(nestedEndpoint);
+
+              return fetch('' + this.baseURI + nestedEndpoint + '/' + id, {
+                  method: 'PUT'
+              }).then(function (response) {
+                  return response.json();
+              });
+          }
+      }, {
+          key: 'nestedDelete',
+          value: function nestedDelete(nestedEndpoint, id) {
+              if (!isValidID(id)) throw new Error('REST: put: invalid value provided for id: ${id}.');
+
+              nestedEndpoint = ensureURIHasNoLeadingSlash(nestedEndpoint);
+
+              return fetch('' + this.baseURI + nestedEndpoint + '/' + id, {
+                  method: 'DELETE'
+              }).then(function (response) {
+                  return response.json();
+              });
+          }
+      }]);
+      return RESTItem;
+  }(RESTApi);
+
+  var RESTCollection = function (_RESTApi) {
+      inherits(RESTCollection, _RESTApi);
+
+      function RESTCollection(URI, options) {
+          classCallCheck(this, RESTCollection);
+
+          var _this = possibleConstructorReturn(this, Object.getPrototypeOf(RESTCollection).call(this, URI, options));
+
+          _this._cache = {};
+          _this._promises = {};
+          return _this;
       }
 
-      return call && (typeof call === "object" || typeof call === "function") ? call : self;
-    };
+      createClass(RESTCollection, [{
+          key: 'reset',
+          value: function reset() {
+              this._cache = {};
+              this._promises = {};
+          }
+      }, {
+          key: 'sync',
+          value: function sync(response) {
+              var _this2 = this;
 
-    babelHelpers;
+              var isArray = Array.isArray(response);
+              var resources = (isArray ? response : Array.of(response)).map(function (resource) {
+                  if (!_this2._cache[resource.id]) _this2._cache[resource.id] = new RESTItem('' + _this2.baseURI + resource.id, _this2.params, resource);else Object.assign(_this2._cache[resource.id], resource);
 
-    function isValidURI(URI) {
-        // A base URI can be a domain eg. "http://example.com"
-        // or it could be a path on the origin domain eg. "/example/"
-        return URI && typeof URI === 'string';
-    }
+                  return _this2._cache[resource.id];
+              });
 
-    function isValidNestedURI(URI) {
-        // A nested URI can only be a path on a baseURI.
-        return isValidURI && URI !== '/' && !URI.startsWith('http');
-    }
+              if (resources.length > 1 || isArray) return resources;else return resources[0];
+          }
 
-    function formatURI(URI) {
-        // If the URI is a path on the origin domain
-        // ensure that one leading slash and one trailing slash
-        // are present in the URI. If the URI is a crossorigin
-        // URI, only apply the trailing slash.
-        if (URI.startsWith('http')) return ensureURIHasOneTrailingSlash(URI.trim());else return ensureURIHasOneLeadingSlash(ensureURIHasOneTrailingSlash(URI.trim()));
-    }
+          /* HTTP */
 
-    function formatNestedURI(URI) {
-        // Since the baseURI always has a trailing slash
-        // remove the leading slash from the nested URI
-        // if present.
-        return ensureURIHasNoLeadingSlash(ensureURIHasOneTrailingSlash(URI.trim()));
-    }
+      }, {
+          key: 'get',
+          value: function get(resource, forceGet) {
+              var _this3 = this;
 
-    function ensureURIHasNoLeadingSlash(URI) {
-        if (URI === '/') return URI;
-        if (!URI.startsWith('/')) return URI;
-        return ensureURIHasNoLeadingSlash(URI.slice(1));
-    }
+              if (!resource || !isValidID$1(resource.id)) throw new Error();
 
-    function ensureURIHasOneLeadingSlash(URI) {
-        if (URI === '/') return URI;
-        if (!URI.startsWith('/')) return '/' + URI;
-        return ensureURIHasOneLeadingSlash(URI.slice(1));
-    }
+              if (this._cache[resource.id] && !forceGet) return Promise.resolve(this._cache[resource.id]);
 
-    function ensureURIHasOneTrailingSlash(URI) {
-        if (URI === '/') return URI;
-        if (!URI.endsWith('/')) return URI + '/';
-        return ensureURIHasOneTrailingSlash(URI.slice(0, -1));
-    }
+              if (!this._promises[resource.id]) {
+                  this._promises[resource.id] = fetch('' + this.baseURI + resource.id, {
+                      method: 'GET',
+                      headers: this.headers['GET']
+                  }).then(function (response) {
+                      return response.json();
+                  }).then(function (resource) {
+                      return _this3.sync(resource);
+                  }).then(function (resource) {
+                      _this3._promises[resource.id] = null;
+                      return resource;
+                  });
+              }
 
-    function isValidID$1(id) {
-        return Number.isSafeInteger(id);
-    }
+              return this._promises[resource.id];
+          }
+      }, {
+          key: 'getList',
+          value: function getList() {
+              var _this4 = this;
 
-    var RESTApi = function () {
-        function RESTApi(baseURI, options) {
-            var _this = this;
+              if (!this._promises['list']) {
+                  this._promises['list'] = fetch('' + this.baseURI, {
+                      method: 'GET',
+                      headers: this.headers['GET']
+                  }).then(function (response) {
+                      return response.json();
+                  }).then(function (resourceList) {
+                      return _this4.sync(resourceList);
+                  }).then(function (resourceList) {
+                      _this4._promises['list'] = null;
+                      return resourceList;
+                  });
+              }
 
-            babelHelpers.classCallCheck(this, RESTApi);
+              return this._promises['list'];
+          }
+      }, {
+          key: 'post',
+          value: function post(newResource) {
+              var _this5 = this;
 
-            if (!isValidURI(baseURI)) throw new Error('Error instantiating RESTApi: baseURI not provided or not of type string.');
+              if (newResource && newResource.id) throw new Error();
 
-            this.params = options || {};
+              return fetch('' + this.baseURI, {
+                  method: 'POST',
+                  headers: this.headers['POST'],
+                  body: JSON.stringify(newResource)
+              }).then(function (response) {
+                  return response.json();
+              }).then(function (resource) {
+                  return _this5.sync(resource);
+              });
+          }
+      }, {
+          key: 'put',
+          value: function put(resource) {
+              var _this6 = this;
 
-            this.baseURI = formatURI(baseURI);
-            this.routes = {};
+              if (!resource || !isValidID$1(resource.id)) throw new Error();
 
-            if (this.params.headers) {
-                this.headers = Object.assign({}, Api.defaultHeaders, this.params.headers);
-            } else {
-                this.headers = RESTApi.defaultHeaders;
-            }
+              return fetch('' + this.baseURI + resource.id, {
+                  method: 'PUT',
+                  headers: this.headers['PUT'],
+                  body: JSON.stringify(resource)
+              }).then(function (response) {
+                  return response.json();
+              }).then(function (resource) {
+                  return _this6.sync(resource);
+              });
+          }
+      }, {
+          key: 'patch',
+          value: function patch(resource) {
+              var _this7 = this;
 
-            if (this.params.routes) {
-                Object.keys(this.params.routes).forEach(function (key) {
-                    return _this.useCollection(key, _this.params.routes[key]);
-                });
-            }
-        }
+              if (!resource || !isValidID$1(resource.id)) throw new Error();
 
-        babelHelpers.createClass(RESTApi, [{
-            key: 'useCollection',
-            value: function useCollection(nestedURI, options) {
-                if (!isValidNestedURI(nestedURI)) throw new Error('RESTApi: Invalid value provided for collection: ' + nestedURI + '.');
+              return fetch('' + this.baseURI + resource.id, {
+                  method: 'PATCH',
+                  headers: this.headers['PATCH'],
+                  body: JSON.stringify(resource)
+              }).then(function (response) {
+                  return response.json();
+              }).then(function (resource) {
+                  return _this7.sync(resource);
+              });
+          }
+      }, {
+          key: 'delete',
+          value: function _delete(resource) {
+              var _this8 = this;
 
-                nestedURI = formatNestedURI(nestedURI);
-                if (this.routes.hasOwnProperty(nestedURI)) throw new Error('RESTApi: Collection already registered: ${nestedURI}.');
+              if (!resource || !isValidID$1(resource.id)) throw new Error();
 
-                this.routes[nestedURI] = new RESTCollection('' + this.baseURI + nestedURI, Object.assign({}, this.params, options));
-                return this.routes[nestedURI];
-            }
-        }]);
-        return RESTApi;
-    }();
+              return fetch('' + this.baseURI + resource.id, {
+                  method: 'DELETE',
+                  headers: this.headers['DELETE']
+              }).then(function () {
+                  _this8._cache[resource.id] = null;
+              });
+          }
+      }]);
+      return RESTCollection;
+  }(RESTApi);
 
-    RESTApi.defaultHeaders = {
-        GET: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        POST: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        PUT: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        PATCH: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        DELETE: {}
-    };
-
-    var RESTItem = function (_RESTApi) {
-        babelHelpers.inherits(RESTItem, _RESTApi);
-
-        function RESTItem(URI, options, data) {
-            babelHelpers.classCallCheck(this, RESTItem);
-
-            var _this = babelHelpers.possibleConstructorReturn(this, Object.getPrototypeOf(RESTItem).call(this, URI, options));
-
-            Object.assign(_this, data);
-            return _this;
-        }
-
-        babelHelpers.createClass(RESTItem, [{
-            key: 'getNestedResource',
-            value: function getNestedResource(path) {
-                path = ensureURIHasNoLeadingSlash(path);
-
-                return fetch('' + this.baseURI + path, {
-                    method: 'GET'
-                }).then(function (response) {
-                    return response.json();
-                });
-            }
-
-            // May not keep this method
-            // path can be like 'orders' or 'orders/1'
-
-        }, {
-            key: 'getNestedApi',
-            value: function getNestedApi(apiInstance, path) {
-                path = ensureURIHasNoLeadingSlash(path);
-
-                return fetch('' + this.baseURI + path, {
-                    method: 'GET'
-                }).then(function (response) {
-                    return response.json();
-                }).then(function (resource) {
-                    if (apiInstance.routes[path]) return apiInstance.routes[path].sync(resource);else return resource;
-                });
-            }
-        }, {
-            key: 'nestedPost',
-            value: function nestedPost(nestedEndpoint) {
-                nestedEndpoint = ensureURIHasNoLeadingSlash(nestedEndpoint);
-                return fetch('' + this.baseURI + nestedEndpoint, {
-                    method: 'POST'
-                }).then(function (response) {
-                    return response.json();
-                });
-            }
-        }, {
-            key: 'nestedPatch',
-            value: function nestedPatch(nestedEndpoint, id) {
-                if (!isValidID(id)) throw new Error('REST: patch: invalid value provided for id: ${id}.');
-
-                nestedEndpoint = ensureURIHasNoLeadingSlash(nestedEndpoint);
-
-                return fetch('' + this.baseURI + nestedEndpoint + '/' + id, {
-                    method: 'PATCH'
-                }).then(function (response) {
-                    return response.json();
-                });
-            }
-        }, {
-            key: 'nestedPut',
-            value: function nestedPut(nestedEndpoint, id) {
-                if (!isValidID(id)) throw new Error('REST: put: invalid value provided for id: ${id}.');
-
-                nestedEndpoint = ensureURIHasNoLeadingSlash(nestedEndpoint);
-
-                return fetch('' + this.baseURI + nestedEndpoint + '/' + id, {
-                    method: 'PUT'
-                }).then(function (response) {
-                    return response.json();
-                });
-            }
-        }, {
-            key: 'nestedDelete',
-            value: function nestedDelete(nestedEndpoint, id) {
-                if (!isValidID(id)) throw new Error('REST: put: invalid value provided for id: ${id}.');
-
-                nestedEndpoint = ensureURIHasNoLeadingSlash(nestedEndpoint);
-
-                return fetch('' + this.baseURI + nestedEndpoint + '/' + id, {
-                    method: 'DELETE'
-                }).then(function (response) {
-                    return response.json();
-                });
-            }
-        }]);
-        return RESTItem;
-    }(RESTApi);
-
-    var RESTCollection = function (_RESTApi) {
-        babelHelpers.inherits(RESTCollection, _RESTApi);
-
-        function RESTCollection(URI, options) {
-            babelHelpers.classCallCheck(this, RESTCollection);
-
-            var _this = babelHelpers.possibleConstructorReturn(this, Object.getPrototypeOf(RESTCollection).call(this, URI, options));
-
-            _this._cache = {};
-            _this._promises = {};
-            return _this;
-        }
-
-        babelHelpers.createClass(RESTCollection, [{
-            key: 'reset',
-            value: function reset() {
-                this._cache = {};
-                this._promises = {};
-            }
-        }, {
-            key: 'sync',
-            value: function sync(response) {
-                var _this2 = this;
-
-                var isArray = Array.isArray(response);
-                var resources = (isArray ? response : Array.of(response)).map(function (resource) {
-                    if (!_this2._cache[resource.id]) _this2._cache[resource.id] = new RESTItem('' + _this2.baseURI + resource.id, _this2.params, resource);else Object.assign(_this2._cache[resource.id], resource);
-
-                    return _this2._cache[resource.id];
-                });
-
-                if (resources.length > 1 || isArray) return resources;else return resources[0];
-            }
-
-            /* HTTP */
-
-        }, {
-            key: 'get',
-            value: function get(resource, forceGet) {
-                var _this3 = this;
-
-                if (!resource || !isValidID$1(resource.id)) throw new Error();
-
-                if (this._cache[resource.id] && !forceGet) return Promise.resolve(this.cache[resource.id]);
-
-                if (!this._promises[resource.id]) {
-                    this._promises[resource.id] = fetch('' + this.baseURI + resource.id, {
-                        method: 'GET',
-                        headers: this.headers['GET']
-                    }).then(function (response) {
-                        return response.json();
-                    }).then(function (resource) {
-                        return _this3.sync(resource);
-                    }).then(function (resource) {
-                        _this3._promises[resource.id] = null;
-                        return resource;
-                    });
-                }
-
-                return this._promises[resource.id];
-            }
-        }, {
-            key: 'getList',
-            value: function getList() {
-                var _this4 = this;
-
-                if (!this._promises['list']) {
-                    this._promises['list'] = fetch('' + this.baseURI, {
-                        method: 'GET',
-                        headers: this.headers['GET']
-                    }).then(function (response) {
-                        return response.json();
-                    }).then(function (resourceList) {
-                        return _this4.sync(resourceList);
-                    }).then(function (resourceList) {
-                        _this4._promises['list'] = null;
-                        return resourceList;
-                    });
-                }
-
-                return this._promises['list'];
-            }
-        }, {
-            key: 'post',
-            value: function post(newResource) {
-                var _this5 = this;
-
-                if (newResource && newResource.id) throw new Error();
-
-                return fetch('' + this.baseURI, {
-                    method: 'POST',
-                    headers: this.headers['POST'],
-                    body: JSON.stringify(newResource)
-                }).then(function (response) {
-                    return response.json();
-                }).then(function (resource) {
-                    return _this5.sync(resource);
-                });
-            }
-        }, {
-            key: 'put',
-            value: function put(resource) {
-                var _this6 = this;
-
-                if (!resource || !isValidID$1(resource.id)) throw new Error();
-
-                return fetch('' + this.baseURI + resource.id, {
-                    method: 'PUT',
-                    headers: this.headers['PUT'],
-                    body: JSON.stringify(resource)
-                }).then(function (response) {
-                    return response.json();
-                }).then(function (resource) {
-                    return _this6.sync(resource);
-                });
-            }
-        }, {
-            key: 'patch',
-            value: function patch(resource) {
-                var _this7 = this;
-
-                if (!resource || !isValidID$1(resource.id)) throw new Error();
-
-                return fetch('' + this.baseURI + resource.id, {
-                    method: 'PATCH',
-                    headers: this.headers['PATCH'],
-                    body: JSON.stringify(resource)
-                }).then(function (response) {
-                    return response.json();
-                }).then(function (resource) {
-                    return _this7.sync(resource);
-                });
-            }
-        }, {
-            key: 'delete',
-            value: function _delete(resource) {
-                var _this8 = this;
-
-                if (!resource || !isValidID$1(resource.id)) throw new Error();
-
-                return fetch('' + this.baseURI + resource.id, {
-                    method: 'DELETE',
-                    headers: this.headers['DELETE']
-                }).then(function () {
-                    _this8._cache[resource.id] = null;
-                });
-            }
-        }]);
-        return RESTCollection;
-    }(RESTApi);
-
-    return RESTApi;
+  return RESTApi;
 
 }());
 //# sourceMappingURL=rest.js.map

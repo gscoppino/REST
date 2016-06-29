@@ -38,7 +38,7 @@ class RESTCollection extends RESTApi {
             throw new Error();
 
         if (this._cache[resource.id] && !forceGet)
-            return Promise.resolve(this.cache[resource.id]);
+            return Promise.resolve(this._cache[resource.id]);
 
         if (!this._promises[resource.id]) {
             this._promises[resource.id] = fetch(`${this.baseURI}${resource.id}`, {

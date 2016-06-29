@@ -33,7 +33,7 @@ class RESTApi {
         this.routes = {};
 
         if (this.params.headers) {
-            this.headers = Object.assign({}, Api.defaultHeaders, this.params.headers);
+            this.headers = Object.assign({}, RESTApi.defaultHeaders, this.params.headers);
         } else {
             this.headers = RESTApi.defaultHeaders;
         }
